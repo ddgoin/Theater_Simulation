@@ -1,0 +1,17 @@
+wait(box_agent);
+wait(concession_worker);
+wait(give_ticket);
+wait(hand_over_ticket);
+wait(mutex0);
+wait(mutex1);
+wait(mutex2);
+wait(mutex2);
+wait(mutex3);
+wait(mutex3);
+wait(mutex4);
+wait(mutex4);
+wait(order_filled);
+wait(order_ready);
+wait(ticket_payment);
+wait(ticket_taker);
+wait(ticket_torn);
