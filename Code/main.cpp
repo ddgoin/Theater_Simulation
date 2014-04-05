@@ -7,6 +7,8 @@
 #include <unistd.h>
 #include <queue>
 #include <sstream>
+#include <fstream>
+#include <string>
 
 using namespace std;
 
@@ -46,19 +48,40 @@ int main(){
 	sem_init(&order_ready, 1, 0);
 	sem_init(&ticket_payment, 1, 0);
 
+	stringstream s;
+
 	//read file
-	seats_available = new int[4];
-	seats_available[0] = 50;
-	seats_available[1] = 50;
-	seats_available[2] = 50;
-	seats_available[3] = 50;
+	ifstream fin("../Documents/movies.txt");
+	string line;
+	vector <string> lines;
+	while(getline(fin, line)){
+		lines.push_back(line);
+	}
 
-	movie = new string[4];
-	movie[0] = "Test Movie One";
-	movie[1] = "Test Movie Two";
-	movie[2] = "Test Movie Three";
-	movie[3] = "Test Movie Four";
+	int num_movies = lines.size();
 
+	seats_available = new int[num_movies];
+	movie = new string[num_movies];
+	
+	//parse input vector
+	for(int x = 0; x < num_movies; x++){
+
+		//cout<<endl<<endl<<lines[x]<<endl;
+		int seats;
+		string temp_line;
+		stringstream temp_ss;
+		
+		temp_ss.str("");
+		temp_line = lines[x];
+		temp_ss.str(temp_line);
+		
+		getline(temp_ss, temp_line, '\t'); 
+		
+		temp_ss >> seats;
+
+		seats_available[x] = seats;
+		movie[x] = temp_line;
+	}
 
 	pthread_t thread_cust[300], thread_agent[2], thread_conc, thread_taker;
 	for(int x = 0;x<300;x++){
@@ -68,18 +91,25 @@ int main(){
 	pthread_create(&(thread_agent[0]), NULL, &thread_box_agent, NULL);
 	pthread_create(&(thread_agent[1]), NULL, &thread_box_agent, NULL);
 
+	pthread_create(&thread_conc, NULL, &thread_concession_worker, NULL);
+
+	pthread_create(&thread_taker, NULL, &thread_ticket_taker, NULL);
+
 	//pthread_create(&thread_conc, NULL)
 	
-	cout<<"hello world";
+	s<<"\nhello world";
+	print(s.str());
+	s.str("");
 
 
 	for(int x = 0;x<300;x++){
 		if(pthread_join(thread_cust[x], NULL) == 0){
-			cout<<"\nJoined customer "<<x;
+			s<<"\nJoined customer "<<x;
+			print(s.str());
+			s.str("");
 		}
 	}
-
-	cout<<endl;
+	
 	return 0;
 }
 
@@ -92,13 +122,15 @@ void *thread_customer(void *args){
 		custnr=cust_count;
 		s<<"\nCustomer "<<custnr<<" created.";
 		print(s.str());
+		s.str("");
 		sem_post(&mutex1);
 	}
 
 	//pick_movie
 	choice[custnr] = rand() % 4;
-	s<<"\nCustomer "<<custnr<<" is in line to see "<<movie[choice[custnr]];
+	s<<"\nCustomer "<<custnr<<" buying ticket to "<<movie[choice[custnr]];
 	print(s.str());
+	s.str("");
 
 	sem_wait(&box_agent);
 		sem_wait(&mutex2);
@@ -108,6 +140,46 @@ void *thread_customer(void *args){
 		sem_wait(&give_ticket);
 			sem_post(&box_agent);
 
+	if(ticket[custnr] == true) {
+		s<<"\nCustomer "<<custnr<<" is in line to see ticket taker";
+		print(s.str());
+		s.str("");
+
+		sem_wait(&ticket_taker);
+			sem_wait(&mutex3);
+				to_taker.push(custnr);
+				sem_post(&mutex3);
+			sem_post(&hand_over_ticket);
+			sem_wait(&ticket_torn);
+				sem_post(&ticket_taker);
+
+		if((rand() % 2)==1){
+			switch(rand() % 3){
+				case 0: c_order[custnr] = "Popcorn and Soda"; break;
+				case 1: c_order[custnr] = "Popcorn";break;
+				case 2: c_order[custnr] = "Soda";break;
+			}
+			s<<"\nCustomer "<<custnr<<" is in line to buy "<<c_order[custnr];
+			print(s.str());
+			s.str("");
+
+			sem_wait(&concession_worker);
+				sem_wait(&mutex4);
+					to_conc.push(custnr);
+					sem_post(&order_ready);
+					sem_post(&mutex4);
+				sem_wait(&order_filled);
+					sem_post(&concession_worker);
+
+				s<<"\nCustomer "<<custnr<<" receives "<<c_order[custnr];
+				print(s.str());
+				s.str("");
+		}
+
+		s<<"\nCustomer "<<custnr<<" enters theater to see "<<movie[choice[custnr]];
+		print(s.str());
+		s.str("");
+	}
 	return 0;
 }
 
@@ -122,6 +194,7 @@ void *thread_box_agent(void *args){
 		agentnr = agent_count;
 		s<<"\nBox office agent "<<agentnr<<" created.";
 		print(s.str());
+		s.str("");
 		sem_post(&mutex0);
 	}
 
@@ -132,12 +205,19 @@ void *thread_box_agent(void *args){
 				to_agent.pop();
 				s<<"\nBox office agent "<<agentnr<<" is serving customer "<<b_cust;
 				print(s.str());
+				s.str("");
 				if(seats_available[choice[b_cust]] > 0){
 					seats_available[choice[b_cust]]--;
 					ticket[b_cust] = true;
+					s<<"\nBox office agent "<<agentnr<<" sold ticket for "<<movie[choice[b_cust]]<<" to customer "<<b_cust;
+				}
+				else{
+					s<<"\nBox office agent "<<agentnr<<" turns away customer "<<b_cust<<" because the movie "<<movie[choice[b_cust]]<<" is full";
 				}
 				sem_post(&mutex2);
-			sleep(time_sell_ticket % 15);
+			usleep((int)(time_sell_ticket/6)*1000);
+			print(s.str());
+			s.str("");
 			sem_post(&give_ticket);
 	}
 
@@ -145,11 +225,59 @@ void *thread_box_agent(void *args){
 }
 
 void *thread_ticket_taker(void *args){
+	int t_cust;
+	stringstream s;
+	s<<"\nTicket taker created";
+	print(s.str());
+	s.str("");
 
+	while(true){
+		sem_wait(&hand_over_ticket);
+			sem_wait(&mutex3);
+				t_cust = to_taker.front();
+				to_taker.pop();
+				sem_post(&mutex3);
+			
+			usleep((int)(time_tear_ticket/6)*1000);
+
+			s<<"\nTicket taken from customer "<<t_cust;
+			print(s.str());
+			s.str("");
+			
+			sem_post(&ticket_torn);
+	}
 	return 0;
 }
 
 void *thread_concession_worker(void *args){
+
+	int c_cust;
+	stringstream s;
+
+	s<<"Concession_worker created";
+	print(s.str());
+	s.str("");
+
+	while(true) {
+
+		sem_wait(&order_ready);
+			sem_wait(&mutex4);
+				c_cust=to_conc.front();
+				to_conc.pop();
+				sem_post(&mutex4);
+				
+			s<<"\nOrder of "<<c_order[c_cust]<<" taken from customer "<<c_cust;
+			print(s.str());
+			s.str("");
+			
+			usleep((int)(time_conc_order/6)*1000);
+
+			s<<endl<<c_order[c_cust]<<" given to customer "<<c_cust;
+			print(s.str());
+			s.str("");
+
+			sem_post(&order_filled);
+	}
 
 	return 0;
 }
@@ -158,4 +286,6 @@ void *print(string s){
 	sem_wait(&mutex5);
 	cout<<s;
 	sem_post(&mutex5);
+	return 0;
 }
+
