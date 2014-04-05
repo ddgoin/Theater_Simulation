@@ -5,7 +5,7 @@ int total_customer = 300, total_box_agent = 2, total_concession_worker = 1, tota
 
 
 semaphore box_agent = total_box_agent, concession_worker = total_concession_worker, ticket_taker = total_ticket_taker;
-semaphore give_ticket = 0, hand_over_ticket = 0, order_filled = 0, ticket_torn = 0, order_ready = 0;
+semaphore give_ticket = 0, hand_over_ticket = 0, order_filled = 0, ticket_torn = 0, order_ready = 0, ticket_payment = 0;
 semaphore mutex0 = 1, mutex1 = 1, mutex2 = 1, mutex3 = 1, mutex4 = 1;
 int time_tear_ticket = 15, time_conc_order = 180, time_sell_ticket = 90;
 bool ticket[total_customer] = {false} //each bool refers to a customer's ticket status, false = no ticket, true = received ticket
@@ -18,8 +18,8 @@ void main(){
 	count = 0;
 	read_in_file()
 
-	for 1 to total_customer{
-		create thread_customer();
+	for i=0 to total_customer-1{
+		create thread_customer()[i];
 	}
 
 	for 1 to total_box_agent{
@@ -32,6 +32,10 @@ void main(){
 
 	for 1 to total_ticket_taker{
 		create thread_ticket_taker();
+	}
+
+	for i=0 to total_customer-1{
+		thread_customer[1].join();
 	}
 }
 
