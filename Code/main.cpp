@@ -66,7 +66,6 @@ int main(){
 	//parse input vector
 	for(int x = 0; x < num_movies; x++){
 
-		//cout<<endl<<endl<<lines[x]<<endl;
 		int seats;
 		string temp_line;
 		stringstream temp_ss;
@@ -94,8 +93,6 @@ int main(){
 	pthread_create(&thread_conc, NULL, &thread_concession_worker, NULL);
 
 	pthread_create(&thread_taker, NULL, &thread_ticket_taker, NULL);
-
-	//pthread_create(&thread_conc, NULL)
 	
 	s<<"\nhello world";
 	print(s.str());

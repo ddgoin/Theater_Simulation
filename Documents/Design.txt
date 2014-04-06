@@ -6,12 +6,12 @@ int total_customer = 300, total_box_agent = 2, total_concession_worker = 1, tota
 
 semaphore box_agent = total_box_agent, concession_worker = total_concession_worker, ticket_taker = total_ticket_taker;
 semaphore give_ticket = 0, hand_over_ticket = 0, order_filled = 0, ticket_torn = 0, order_ready = 0, ticket_payment = 0;
-semaphore mutex0 = 1, mutex1 = 1, mutex2 = 1, mutex3 = 1, mutex4 = 1;
+semaphore mutex0 = 1, mutex1 = 1, mutex2 = 1, mutex3 = 1, mutex4 = 1, mutex5 = 1;
 int time_tear_ticket = 15, time_conc_order = 180, time_sell_ticket = 90;
 bool ticket[total_customer] = {false} //each bool refers to a customer's ticket status, false = no ticket, true = received ticket
 int movie[total_customer] = {0} //each int refers to a customer's movie choice
 string c_order[total_customer] = {""} //each int refers to a customer's order at the concession stand, empty string = no order ()
-
+**int seats_available[];
 int cust_count = 0, agent_count = 0;
 
 void main(){
@@ -144,4 +144,10 @@ void thead_concession_worker(){
 			give_order();
 			signal(order_filled);
 	}
+}
+
+void printmsg(string s){ //used to keep output from being corrupted
+	wait(mutex5);
+	print(s);
+	signal(mutex5);
 }
